@@ -18,7 +18,7 @@ DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
 # Number of reviews to request per fetch call
-COUNT = 500
+COUNT = 2000
 
 
 def fetch_reviews(country_code):
