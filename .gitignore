@@ -1,0 +1,29 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# VS Code
+.vscode/
+
+# Environment variables
+.env
+
+# Logs and caches
+*.log
+.cache/
+huggingface/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Raw/large data files
+*_raw.csv
+*.parquet
+*.xlsx
