@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from pathlib import Path
 
 from utils import (
@@ -12,6 +13,7 @@ from utils import (
 )
 
 
+# Page configuration
 st.set_page_config(
     page_title="PickMe Sentiment Dashboard",
     page_icon="🚗",
@@ -19,11 +21,13 @@ st.set_page_config(
 )
 
 
+# Dataset path
 DATA_PATH = Path(__file__).parent / "data" / "pickme_reviews_with_sentiment.csv"
 
 
+# Load and cache dataset for better performance
 @st.cache_data
-def load_pickme_data():
+def load_pickme_data() -> pd.DataFrame:
     return load_data(DATA_PATH)
 
 
@@ -31,6 +35,7 @@ df = load_pickme_data()
 analyzed = get_analyzed_reviews(df)
 
 
+# Dashboard title and description
 st.title("PickMe Google Play Review Sentiment Analysis")
 
 st.caption(
@@ -39,26 +44,21 @@ st.caption(
 )
 
 
+# Check whether valid data is available
 if df.empty:
     st.error("No data found. Please check the data file.")
     st.stop()
-
 
 if analyzed.empty:
     st.error("No analyzed English reviews found.")
     st.stop()
 
-
-# ---------------------
-# Sidebar filters
-# ---------------------
+# Sidebar Filters
 
 st.sidebar.header("Filters")
 
-
 min_date = analyzed["date"].min().date()
 max_date = analyzed["date"].max().date()
-
 
 date_range = st.sidebar.slider(
     "Review date range",
@@ -67,13 +67,11 @@ date_range = st.sidebar.slider(
     value=(min_date, max_date),
 )
 
-
 selected_sentiments = st.sidebar.multiselect(
     "Sentiment",
     options=["Positive", "Negative"],
     default=["Positive", "Negative"],
 )
-
 
 min_confidence = st.sidebar.slider(
     "Minimum confidence",
@@ -84,7 +82,7 @@ min_confidence = st.sidebar.slider(
 )
 
 
-# Base filter using date and confidence
+# Apply date and confidence filters
 base_filtered = analyzed[
     (analyzed["date"].dt.date >= date_range[0])
     & (analyzed["date"].dt.date <= date_range[1])
@@ -92,31 +90,28 @@ base_filtered = analyzed[
 ].copy()
 
 
-# Final filter using selected sentiments
+# Apply selected sentiment filter
 filtered = base_filtered[
     base_filtered["sentiment"].isin(selected_sentiments)
 ].copy()
 
-
-# ---------------------
-# Metrics
-# ---------------------
+# Key Metrics
 
 total_reviews = len(df)
 english_reviews = len(df[df["language"] == "English"])
 non_english_reviews = total_reviews - english_reviews
 
-
 positive_count = len(filtered[filtered["sentiment"] == "Positive"])
 negative_count = len(filtered[filtered["sentiment"] == "Negative"])
 
+positive_rate = (
+    positive_count / len(filtered)
+    if len(filtered) > 0
+    else 0
+)
 
-if len(filtered) > 0:
-    positive_rate = positive_count / len(filtered)
-else:
-    positive_rate = 0
 
-
+# Display dashboard KPIs
 col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric("Total Reviews", total_reviews)
@@ -135,10 +130,7 @@ if filtered.empty:
     st.warning("No reviews match the selected filters.")
     st.stop()
 
-
-# ---------------------
-# Sentiment distribution
-# ---------------------
+# Sentiment Distribution
 
 st.subheader("Overall Sentiment Distribution")
 
@@ -149,10 +141,7 @@ if distribution_chart:
 else:
     st.info("Not enough data for sentiment distribution.")
 
-
-# ---------------------
-# Sentiment trend
-# ---------------------
+# Sentiment Trend
 
 st.subheader("Sentiment Trend Over Time")
 
@@ -164,12 +153,9 @@ else:
     st.info("Not enough data for sentiment trend.")
 
 
-# ---------------------
-# Top reviews
-# ---------------------
+# Top Reviews
 
 st.subheader("Top Positive and Negative Reviews")
-
 
 review_column_config = {
     "review_text": st.column_config.TextColumn(
@@ -226,13 +212,9 @@ with right_col:
             column_config=review_column_config,
         )
 
-
-# ---------------------
-# Word cloud
-# ---------------------
+# Word Cloud
 
 st.subheader("Word Cloud")
-
 
 tab_all, tab_positive, tab_negative = st.tabs(
     ["All Analyzed", "Positive", "Negative"]
@@ -269,6 +251,7 @@ with tab_negative:
         st.info("Not enough negative text to create a word cloud.")
 
 
+# Model and data source
 st.markdown("---")
 
 st.caption(
