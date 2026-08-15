@@ -69,3 +69,6 @@ This project analyzes customer sentiment towards **PickMe**, Sri Lanka's leading
 **Visura Rodrigo**  
 Data Science & Business Analytics Undergraduate | KDU, Sri Lanka  
 [LinkedIn](YOUR_LINKEDIN_URL) | [GitHub](YOUR_GITHUB_URL)
+
+**⚖️ Disclaimer:** 
+This is an independent, educational portfolio project created for data science learning purposes. The creator is not affiliated with, sponsored by, or endorsed by PickMe or Spacebyte Holdings (Pvt) Ltd. All data analyzed consists of publicly available user reviews from the Google Play Store. The insights presented reflect user sentiment and do not represent the views of the developer or the company.
