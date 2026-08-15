@@ -2,7 +2,4 @@ streamlit
 pandas
 plotly
 wordcloud
-matplotlib
-transformers
-torch
-google-play-scraper
+matplotlib 
