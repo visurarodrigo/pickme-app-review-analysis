@@ -1,97 +1,96 @@
-# Import pathlib for filesystem path handling in a cross-platform way
 from pathlib import Path
-# Import pandas for loading and manipulating tabular review data
 import pandas as pd
-# Import Hugging Face's pipeline utility for easy use of pre-trained models
 from transformers import pipeline
 
-# Directory where input/output CSV files are stored
 DATA_DIR = Path("data")
-# Path to the cleaned reviews file produced by the earlier preprocessing step
 INPUT_FILE = DATA_DIR / "pickme_reviews_clean.csv"
-# Path where the sentiment-enriched output will be written
 OUTPUT_FILE = DATA_DIR / "pickme_reviews_with_sentiment.csv"
 
-# Pre-trained DistilBERT model fine-tuned on the Stanford Sentiment Treebank (SST-2)
-# It outputs "POSITIVE" / "NEGATIVE" labels with a confidence score
 MODEL_NAME = "distilbert-base-uncased-finetuned-sst-2-english"
 
+
+def detect_language(text):
+    text = str(text)
+
+    for char in text:
+        # Sinhala Unicode range
+        if "\u0D80" <= char <= "\u0DFF":
+            return "Sinhala"
+
+        # Tamil Unicode range
+        if "\u0B80" <= char <= "\u0BFF":
+            return "Tamil"
+
+    return "English"
+
+
 def main():
-    # Notify the user that we are beginning to load the input data
     print("Loading cleaned PickMe reviews...")
 
-    # Read the cleaned PickMe reviews CSV into a pandas DataFrame
     df = pd.read_csv(INPUT_FILE)
 
-    # Show how many reviews were successfully loaded
     print(f"Loaded {len(df)} reviews.")
-    # Inform the user that the (potentially heavy) sentiment model is being downloaded/loaded
-    print("Loading Hugging Face sentiment model...")
 
-    # Create a ready-to-use sentiment-analysis pipeline that wraps the model + tokenizer
-    classifier = pipeline(
-        "sentiment-analysis",
-        model=MODEL_NAME,
-        tokenizer=MODEL_NAME,
-    )
+    print("Detecting languages...")
 
-    # Extract the review text column:
-    # - fillna("") replaces any missing reviews with empty strings (model can't handle NaN)
-    # - astype(str) ensures every entry is treated as a string
-    # - tolist() converts the column into a Python list expected by the pipeline
-    reviews = df["review_text"].fillna("").astype(str).tolist()
+    df["language"] = df["review_text"].apply(detect_language)
 
-    # Inform the user that the (potentially slow) inference phase is starting
-    print("Running sentiment predictions...")
+    print("\nLanguage distribution:")
+    print(df["language"].value_counts())
 
-    # Run the model on all reviews in batches of 16;
-    # truncation=True safely cuts off reviews longer than the model's max input length
-    results = classifier(
-        reviews,
-        batch_size=16,
-        truncation=True,
-    )
+    english_mask = df["language"] == "English"
 
-    # Parallel lists to store the cleaned sentiment label and confidence score per review
-    sentiments = []
-    confidences = []
+    df["sentiment"] = "Not Analyzed"
+    df["confidence"] = None
 
-    # Iterate through each model's prediction and normalize the label + score
-    for result in results:
-        # The pipeline returns labels like "POSITIVE"/"NEGATIVE"; lowercase for comparison
-        label = result["label"].lower()
-        # Confidence score (probability the model assigned to the predicted label)
-        score = result["score"]
+    english_reviews = df.loc[english_mask, "review_text"].fillna("").astype(str).tolist()
 
-        # Map the model's raw label to a clean display label
-        if label == "positive":
-            sentiments.append("Positive")
-        elif label == "negative":
-            sentiments.append("Negative")
-        else:
-            # Fallback for any unexpected labels: title-case them
-            sentiments.append(label.title())
+    print(f"\nEnglish reviews to analyze: {len(english_reviews)}")
+    print("Non-English reviews kept but not analyzed:", len(df) - len(english_reviews))
 
-        # Round the confidence score to 4 decimal places for tidy storage
-        confidences.append(round(score, 4))
+    if len(english_reviews) > 0:
+        print("Loading Hugging Face sentiment model...")
 
-    # Add the new columns to the original DataFrame alongside the existing review data
-    df["sentiment"] = sentiments
-    df["confidence"] = confidences
+        classifier = pipeline(
+            "sentiment-analysis",
+            model=MODEL_NAME,
+            tokenizer=MODEL_NAME,
+        )
 
-    # Write the enriched DataFrame to disk as UTF-8 CSV (no pandas index column)
+        print("Running sentiment predictions...")
+
+        results = classifier(
+            english_reviews,
+            batch_size=16,
+            truncation=True,
+        )
+
+        sentiments = []
+        confidences = []
+
+        for result in results:
+            label = result["label"].lower()
+            score = result["score"]
+
+            if label == "positive":
+                sentiments.append("Positive")
+            elif label == "negative":
+                sentiments.append("Negative")
+            else:
+                sentiments.append(label.title())
+
+            confidences.append(round(score, 4))
+
+        df.loc[english_mask, "sentiment"] = sentiments
+        df.loc[english_mask, "confidence"] = confidences
+
     df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8")
 
-    # Final status messages summarizing the run
-    print("Sentiment prediction completed.")
-    print("\nSentiment distribution:")
-    # Show how many reviews fell into each sentiment category
-    print(df["sentiment"].value_counts())
-    # Tell the user where the resulting file was saved
+    print("\nSentiment distribution for English reviews:")
+    print(df[df["sentiment"] != "Not Analyzed"]["sentiment"].value_counts())
+
     print(f"\nSaved file: {OUTPUT_FILE}")
 
 
-# Standard Python idiom: only run main() when this file is executed directly
-# (not when it is imported as a module)
 if __name__ == "__main__":
     main()
